@@ -1,6 +1,6 @@
 {
-  "name": "Maszyny – PRZED/PO",
-  "short_name": "Maszyny Foto",
+  "name": "FotSerwis – Lokalny zapis",
+  "short_name": "FotSerwis",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0f172a",

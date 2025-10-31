@@ -3,214 +3,274 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fotserwis</title>
+  <title>FotSerwis – PRZED/PO (Lokalnie)</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#111827" />
   <style>
-    :root{--bg:#0f172a;--card:#111827;--muted:#9ca3af;--text:#e5e7eb;--accent:#22c55e}
+    :root{--bg:#0f172a;--card:#111827;--muted:#9ca3af;--text:#e5e7eb;--accent:#22c55e;--orange:#f59e0b}
     html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
-    .wrap{max-width:900px;margin:0 auto;padding:16px 16px 100px}
+    .wrap{max-width:980px;margin:0 auto;padding:16px 16px 120px}
     header{position:sticky;top:0;background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(15,23,42,.9));backdrop-filter:saturate(180%) blur(8px);z-index:10;border-bottom:1px solid #1f2937}
-    header .bar{display:flex;gap:12px;align-items:center;padding:12px 16px}
-    input,button,select{font:inherit}
-    .input{background:#0b1220;border:1px solid #223;outline:none;border-radius:12px;padding:12px 14px;color:var(--text)}
-    .btn{background:var(--accent);color:#062a12;border:none;border-radius:12px;padding:12px 16px;font-weight:600}
+    header .bar{display:flex;flex-direction:column;gap:6px;padding:12px 16px}
+    .title{font-weight:800;font-size:20px}
+    .subbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input,button{font:inherit}
+    .input{background:#0b1220;border:1px solid #223;outline:none;border-radius:12px;padding:10px 12px;color:var(--text);text-transform:uppercase}
+    .btn{background:var(--accent);color:#062a12;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn.secondary{background:#1f2937;color:var(--text)}
-    .btn:disabled{opacity:.5}
-    .seg{display:inline-flex;background:#0b1220;border:1px solid #223;border-radius:12px;overflow:hidden}
-    .seg button{background:transparent;color:var(--text);padding:10px 14px;border:none}
-    .seg button.active{background:#10b98122}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
     .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:16px;margin-top:16px}
     .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
     .grow{flex:1}
     .muted{color:var(--muted)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-    .thumb{position:relative;border-radius:12px;overflow:hidden;border:1px solid #1f2937;background:#0b1220}
-    .thumb img{display:block;width:100%;height:140px;object-fit:cover}
-    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px dashed #374151;color:#cbd5e1}
+    code{background:#0b1220;padding:2px 6px;border-radius:6px}
     footer{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(15,23,42,.98),rgba(15,23,42,.9));border-top:1px solid #1f2937;padding:10px 16px}
+    /* PRZED/PO segment */
+    .seg{display:flex;justify-content:center;border:1px solid #223;border-radius:12px;overflow:hidden;margin:8px auto 0;width:100%;max-width:540px;background:#0b1220}
+    .seg button{flex:1;min-width:0;background:transparent;color:var(--text);padding:14px 16px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:.3px}
+    .seg button.active{background:rgba(245,158,11,0.25); color:#fff; box-shadow: inset 0 0 0 2px rgba(245,158,11,0.5)}
+    /* Machine list */
+    ul.clean{list-style:none;padding-left:0;margin:8px 0}
+    ul.clean li{padding:10px 12px;border:1px solid #1f2937;border-radius:10px;margin-bottom:8px;background:#0b1220;display:flex;justify-content:space-between}
+    /* Thumbs */
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid #1f2937;background:#0b1220}
+    .thumb img{display:block;width:100%;height:88px;object-fit:cover}
+    @media (max-width:560px){
+      .grid{grid-template-columns:repeat(4,1fr);}
+      .thumb img{height:64px;}
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="bar">
-      <strong>Maszyny – PRZED/PO</strong>
-      <span class="muted" id="status">Wybierz katalog zapisu…</span>
-      <div class="grow"></div>
-      <button class="btn secondary" id="pickRoot">📁 Wybierz katalog</button>
-      <button class="btn secondary" id="installBtn" hidden>⬇️ Zainstaluj</button>
+      <div class="title">FotSerwis – PRZED/PO</div>
+      <div class="subbar">
+        <span class="muted">Folder główny:</span>
+        <button class="btn secondary" id="pickRoot">📁 Wybierz katalog</button>
+        <span class="muted" id="rootLabel">brak</span>
+        <div class="grow"></div>
+        <button class="btn secondary" id="installBtn" hidden>⬇️ Zainstaluj</button>
+      </div>
     </div>
   </header>
 
   <div class="wrap">
     <div class="card">
-      <div class="row" style="gap:10px">
-        <input id="machine" class="input grow" placeholder="Numer maszyny (np. 1234-AB)" autocomplete="off"/>
-        <div class="seg" role="tablist" aria-label="Tryb">
-          <button type="button" id="modeBefore" class="active">PRZED</button>
-          <button type="button" id="modeAfter">PO</button>
-        </div>
+      <div class="row">
+        <input id="machine" class="input grow" placeholder="NUMER MASZYNY (np. 1234-AB)" autocomplete="off"/>
+      </div>
+      <div class="seg" role="tablist" aria-label="Tryb">
+        <button type="button" id="modeBefore" class="active">PRZED</button>
+        <button type="button" id="modeAfter">PO</button>
+      </div>
+      <div class="row" style="margin-top:10px;gap:10px;justify-content:center">
         <input id="file" type="file" accept="image/*" capture="environment" hidden multiple>
-        <button class="btn" id="shoot">📸 Zrób/Zaznacz zdjęcia</button>
+        <button class="btn" id="shoot" disabled>📸 Zrób/Zaznacz zdjęcia</button>
       </div>
-      <p class="muted" style="margin-top:8px">Zdjęcia trafią do: <code id="pathPreview">(brak)</code></p>
-      <div class="row" style="margin-top:8px">
-        <span class="pill" id="permInfo">Uprawnienia: brak</span>
-        <span class="pill" id="apiInfo">Zapisywanie: auto-foldery <span id="apiBadge">(sprawdzanie…)</span></span>
-      </div>
+      <p class="muted" style="margin-top:8px;text-align:center">Ścieżka: <code id="pathPreview">—</code></p>
     </div>
 
     <div class="card">
-      <h3>Ostatnie zdjęcia</h3>
-      <div class="grid" id="gallery"></div>
+      <h3>Dzisiejsze maszyny (<span id="today"></span>)</h3>
+      <ul class="clean" id="machinesToday"></ul>
     </div>
 
     <div class="card">
-      <h3>Wskazówki</h3>
-      <ul>
-        <li>Najpierw kliknij <strong>„Wybierz katalog”</strong> i wskaż folder główny, w którym powstaną katalogi <code>Maszyny/&lt;NUMER&gt;/PRZED|PO</code>.</li>
-        <li>Wpisz numer maszyny, wybierz <strong>PRZED</strong> lub <strong>PO</strong>, a potem zrób zdjęcia.</li>
-        <li>Jeśli Twoja przeglądarka nie wspiera automatycznego zapisu do folderów, każde zdjęcie pobierze się z poprawną nazwą — zapisz je w odpowiednich katalogach.</li>
-      </ul>
+      <h3>Ostatnie 4 zdjęcia</h3>
+      <div class="grid" id="thumbs"></div>
     </div>
   </div>
 
   <footer>
     <div class="row">
-      <small class="muted">PWA offline: zainstaluj, aby działać bez sieci. Uprawnienia do katalogu zapamiętywane lokalnie.</small>
+      <small class="muted">© GPBS</small>
       <div class="grow"></div>
-      <small class="muted">© Twoja firma</small>
+      <small class="muted">PWA offline – cache plików.</small>
     </div>
   </footer>
 
   <script>
-  // ========= PWA install prompt =========
-  let deferredPrompt;
-  const installBtn = document.getElementById('installBtn');
-  window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
-  installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
-  if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
+    // PWA install
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
+    installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
 
-  // ========= IndexedDB helpers to store directory handle =========
-  const DB_NAME = 'maszyny-store';
-  const STORE = 'handles';
-  function idb(){ return new Promise((res,rej)=>{ const r = indexedDB.open(DB_NAME,1); r.onupgradeneeded = ()=>{ r.result.createObjectStore(STORE); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-  async function idbSet(key,val){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
-  async function idbGet(key){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const req=tx.objectStore(STORE).get(key); req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); }); }
+    // IndexedDB to store directory handle
+    const DB_NAME = 'maszyny-store';
+    const STORE = 'handles';
+    function idb(){ return new Promise((res,rej)=>{ const r = indexedDB.open(DB_NAME,1); r.onupgradeneeded = ()=>{ r.result.createObjectStore(STORE); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+    async function idbSet(key,val){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+    async function idbGet(key){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const req=tx.objectStore(STORE).get(key); req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); }); }
 
-  // ========= UI refs =========
-  const statusEl = document.getElementById('status');
-  const pickBtn = document.getElementById('pickRoot');
-  const machineEl = document.getElementById('machine');
-  const modeBefore = document.getElementById('modeBefore');
-  const modeAfter = document.getElementById('modeAfter');
-  const shootBtn = document.getElementById('shoot');
-  const fileInput = document.getElementById('file');
-  const gallery = document.getElementById('gallery');
-  const pathPreview = document.getElementById('pathPreview');
-  const permInfo = document.getElementById('permInfo');
-  const apiBadge = document.getElementById('apiBadge');
+    // Refs
+    const pickBtn = document.getElementById('pickRoot');
+    const rootLabel = document.getElementById('rootLabel');
+    const machineEl = document.getElementById('machine');
+    const modeBefore = document.getElementById('modeBefore');
+    const modeAfter = document.getElementById('modeAfter');
+    const shootBtn = document.getElementById('shoot');
+    const fileInput = document.getElementById('file');
+    const pathPreview = document.getElementById('pathPreview');
+    const machinesTodayEl = document.getElementById('machinesToday');
+    const todayEl = document.getElementById('today');
+    const thumbs = document.getElementById('thumbs');
 
-  let rootHandle = null;
-  let mode = 'PRZED';
+    // State
+    let rootHandle = null;
+    let rootName = '—';
+    let mode = 'PRZED';
+    let lastThumbs = []; // {url, revokeAt}
 
-  // ========= Capability detection =========
-  const hasFS = !!window.showDirectoryPicker;
-  apiBadge.textContent = hasFS ? '(automatyczny zapis dostępny)' : '(fallback: pobieranie plików)';
+    // Helpers
+    const hasFS = !!window.showDirectoryPicker;
+    const p = (n)=> String(n).padStart(2,'0');
+    function ddmm(){ const d=new Date(); return `${p(d.getDate())}-${p(d.getMonth()+1)}`; }
+    function isoDate(){ return new Date().toISOString().slice(0,10); }
+    function sanitize(s){ return (s||'').toUpperCase().replace(/[^0-9A-Z._-]+/g,'-').slice(0,64); }
+    function fmt(ts){ const d=new Date(ts); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+    function modeFolder(){ return mode === 'PRZED' ? 'przed' : 'po'; }
 
-  function fmt(ts){ const d=new Date(ts); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; }
-  function sanitize(s){ return (s||'').replace(/[^0-9A-Za-z._-]+/g,'-').slice(0,64); }
-
-  function updatePathPreview(){
-    const m = sanitize(machineEl.value || 'BRAK');
-    pathPreview.textContent = `Maszyny/${m}/${mode}`;
-  }
-
-  modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePathPreview();});
-  modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePathPreview();});
-  machineEl.addEventListener('input',updatePathPreview);
-  updatePathPreview();
-
-  async function ensurePerms(){
-    if(!rootHandle) return false;
-    if(await rootHandle.queryPermission({mode:'readwrite'})==='granted') return true;
-    const res = await rootHandle.requestPermission({mode:'readwrite'});
-    return res==='granted';
-  }
-
-  async function pickRoot(){
-    if(!hasFS){ alert('Twoja przeglądarka nie wspiera wyboru katalogu. Będzie użyty tryb pobierania plików.'); return; }
-    rootHandle = await window.showDirectoryPicker({id:'maszyny-root'});
-    await idbSet('root', rootHandle);
-    statusEl.textContent = 'Wybrano katalog';
-    permInfo.textContent = 'Uprawnienia: oczekujące';
-    if(await ensurePerms()) permInfo.textContent = 'Uprawnienia: nadane';
-  }
-
-  pickBtn.addEventListener('click',pickRoot);
-
-  (async()=>{ // przywróć handle z IndexedDB
-    try{ const h = await idbGet('root'); if(h){ rootHandle = h; if(await ensurePerms()){ statusEl.textContent='Katalog zapamiętany'; permInfo.textContent='Uprawnienia: nadane'; } else { statusEl.textContent='Wybierz katalog zapisu…'; }} }catch(e){}
-  })();
-
-  function addThumb(file){
-    const url = URL.createObjectURL(file);
-    const d = document.createElement('div'); d.className='thumb';
-    const img = document.createElement('img'); img.src=url; d.appendChild(img);
-    gallery.prepend(d);
-    setTimeout(()=>URL.revokeObjectURL(url), 60_000);
-  }
-
-  async function saveToFS(file){
-    if(!rootHandle) throw new Error('Brak katalogu głównego');
-    if(!(await ensurePerms())) throw new Error('Brak uprawnień do zapisu');
-    const machine = sanitize(machineEl.value||'BRAK');
-    // twórz strukturę Maszyny/<NUMER>/<PRZED|PO>
-    const dirMaszyny = await rootHandle.getDirectoryHandle('Maszyny', {create:true});
-    const dirMachine = await dirMaszyny.getDirectoryHandle(machine, {create:true});
-    const dirMode = await dirMachine.getDirectoryHandle(mode, {create:true});
-
-    // nazwa: NUMER_MODE_YYYYMMDD_HHMMSS_n.jpg
-    const ts = fmt(Date.now());
-    const base = `${machine}_${mode}_${ts}`;
-    let idx=1, targetName=`${base}.jpg`;
-    while(true){
-      try{ await dirMode.getFileHandle(targetName); idx++; targetName=`${base}_${idx}.jpg`; }
-      catch{ break; }
+    function updatePath(){
+      const mach = sanitize(machineEl.value || '');
+      const preview = `${rootName}/${ddmm()}/${mach||'—'}/${modeFolder()}`;
+      pathPreview.textContent = rootHandle ? preview : '— (najpierw wybierz katalog)';
+      shootBtn.disabled = !(rootHandle && mach.length>0);
     }
-    const handle = await dirMode.getFileHandle(targetName, {create:true});
-    const ws = await handle.createWritable();
-    await ws.write(file);
-    await ws.close();
-    return targetName;
-  }
 
-  async function saveFallback(file){
-    const machine = sanitize(machineEl.value||'BRAK');
-    const ts = fmt(Date.now());
-    const name = `${machine}_${mode}_${ts}.jpg`;
-    const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(file); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60_000);
-    return name;
-  }
+    function dayKey(){ return 'machines_'+isoDate(); }
+    function loadMachinesToday(){ try { return JSON.parse(localStorage.getItem(dayKey())||'[]'); } catch { return []; } }
+    function saveMachinesToday(list){ localStorage.setItem(dayKey(), JSON.stringify(Array.from(new Set(list)))); }
+    function renderMachinesToday(){
+      machinesTodayEl.innerHTML = '';
+      loadMachinesToday().forEach((num,i)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${num}</span><span class="muted">#${String(i+1).padStart(2,'0')}</span>`;
+        machinesTodayEl.appendChild(li);
+      });
+    }
+    function addMachineToday(num){
+      const list = loadMachinesToday();
+      if(num && !list.includes(num)) list.unshift(num);
+      saveMachinesToday(list.slice(0,200));
+      renderMachinesToday();
+    }
 
-  document.getElementById('shoot').addEventListener('click',()=> fileInput.click());
+    function pushThumb(file){
+      const url = URL.createObjectURL(file);
+      lastThumbs.unshift(url);
+      lastThumbs = lastThumbs.slice(0,4);
+      renderThumbs();
+      setTimeout(()=>{
+        const i = lastThumbs.indexOf(url);
+        if(i===-1) URL.revokeObjectURL(url);
+      }, 60_000);
+    }
+    function renderThumbs(){
+      thumbs.innerHTML = '';
+      lastThumbs.forEach(u=>{
+        const d = document.createElement('div'); d.className='thumb';
+        const img = document.createElement('img'); img.src = u;
+        d.appendChild(img);
+        thumbs.appendChild(d);
+      });
+    }
 
-  fileInput.addEventListener('change', async ()=>{
-    const files = Array.from(fileInput.files||[]);
-    if(files.length===0) return;
-    for(const f of files){
-      addThumb(f);
+    async function ensurePerms(){
+      if(!rootHandle) return false;
+      if(await rootHandle.queryPermission?.({mode:'readwrite'})==='granted') return true;
+      const res = await rootHandle.requestPermission?.({mode:'readwrite'});
+      return res==='granted';
+    }
+
+    async function pickRoot(){
+      if(!hasFS){ alert('Twoja przeglądarka nie wspiera wyboru katalogu. Użyje pobierania plików.'); rootHandle=null; rootName='Pobrane'; updatePath(); return; }
+      rootHandle = await window.showDirectoryPicker({id:'fotserwis-root'});
+      await idbSet('root', rootHandle);
+      rootName = (rootHandle.name || 'Wybrany folder');
+      await ensurePerms();
+      rootLabel.textContent = rootName;
+      updatePath();
+    }
+
+    pickBtn.addEventListener('click', pickRoot);
+
+    (async()=>{
+      todayEl.textContent = isoDate();
+      try{ const h = await idbGet('root'); if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; } }catch(e){}
+      updatePath();
+      renderMachinesToday();
+    })();
+
+    modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
+    modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
+
+    machineEl.addEventListener('input', ()=>{
+      // force uppercase live
+      const pos = machineEl.selectionStart;
+      machineEl.value = machineEl.value.toUpperCase();
+      machineEl.setSelectionRange(pos, pos);
+      updatePath();
+    });
+
+    document.getElementById('shoot').addEventListener('click', ()=> fileInput.click());
+
+    async function saveToFS(file){
+      if(!rootHandle) throw new Error('Brak katalogu głównego');
+      if(!(await ensurePerms())) throw new Error('Brak uprawnień do zapisu');
+      const mach = sanitize(machineEl.value||'');
+      const dateDir = ddmm();
+      const dateHandle = await rootHandle.getDirectoryHandle(dateDir, {create:true});
+      const machineHandle = await dateHandle.getDirectoryHandle(mach, {create:true});
+      const modeHandle = await machineHandle.getDirectoryHandle(modeFolder(), {create:true});
+      const ts = fmt(Date.now());
+      const base = `${mach}_${mode}_${ts}`;
+      let idx=1, targetName=`${base}.jpg`;
+      // make unique if exists
       try{
-        const name = hasFS && rootHandle ? await saveToFS(f) : await saveFallback(f);
-        console.log('Zapisano', name);
-      }catch(e){
-        console.error(e);
-        alert('Nie udało się zapisać: '+ e.message + '\nUżyję pobierania pliku.');
-        await saveFallback(f);
-      }
+        while(true){
+          await modeHandle.getFileHandle(targetName);
+          idx++; targetName = `${base}_${idx}.jpg`;
+        }
+      }catch{ /* free name found */ }
+      const handle = await modeHandle.getFileHandle(targetName, {create:true});
+      const ws = await handle.createWritable();
+      await ws.write(file);
+      await ws.close();
+      return targetName;
     }
-    fileInput.value = '';
-  });
+
+    async function saveFallback(file){
+      const mach = sanitize(machineEl.value||'');
+      const ts = fmt(Date.now());
+      const name = `${mach}_${mode}_${ts}.jpg`;
+      const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(file); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60_000);
+      return name;
+    }
+
+    fileInput.addEventListener('change', async ()=>{
+      const files = Array.from(fileInput.files||[]);
+      if(files.length===0) return;
+      const mach = sanitize(machineEl.value||'');
+      if(!mach){ alert('Wpisz numer maszyny.'); return; }
+      addMachineToday(mach);
+      for(const f of files){
+        try{
+          const name = (hasFS && rootHandle) ? await saveToFS(f) : await saveFallback(f);
+          pushThumb(f);
+          console.log('Zapisano', name);
+        }catch(e){
+          console.error(e);
+          alert('Nie udało się zapisać: '+ e.message + '\nUżyję pobierania pliku.');
+          await saveFallback(f);
+          pushThumb(f);
+        }
+      }
+      fileInput.value = '';
+    });
   </script>
 </body>
 </html>
