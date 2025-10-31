@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FotSerwis(Lokalnie)</title>
+  <title>FotSerwis – PRZED/PO (Lokalnie)</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#111827" />
   <style>
@@ -29,17 +29,16 @@
     .seg{display:flex;justify-content:center;border:1px solid #223;border-radius:12px;overflow:hidden;margin:8px auto 0;width:100%;max-width:540px;background:#0b1220}
     .seg button{flex:1;min-width:0;background:transparent;color:var(--text);padding:14px 16px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:.3px}
     .seg button.active{background:rgba(245,158,11,0.25); color:#fff; box-shadow: inset 0 0 0 2px rgba(245,158,11,0.5)}
+    /* Thumbs 2x2 */
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .thumb{position:relative;border-radius:12px;overflow:hidden;border:1px solid #1f2937;background:#0b1220}
+    .thumb img{display:block;width:100%;height:180px;object-fit:cover}
+    @media (max-width:560px){
+      .thumb img{height:160px;}
+    }
     /* Machine list */
     ul.clean{list-style:none;padding-left:0;margin:8px 0}
     ul.clean li{padding:10px 12px;border:1px solid #1f2937;border-radius:10px;margin-bottom:8px;background:#0b1220;display:flex;justify-content:space-between}
-    /* Thumbs */
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-    .thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid #1f2937;background:#0b1220}
-    .thumb img{display:block;width:100%;height:88px;object-fit:cover}
-    @media (max-width:560px){
-      .grid{grid-template-columns:repeat(4,1fr);}
-      .thumb img{height:64px;}
-    }
   </style>
 </head>
 <body>
@@ -73,21 +72,21 @@
     </div>
 
     <div class="card">
-      <h3>Dzisiejsze maszyny (<span id="today"></span>)</h3>
-      <ul class="clean" id="machinesToday"></ul>
+      <h3>Ostatnie 4 zdjęcia</h3>
+      <div class="grid" id="thumbs"></div>
     </div>
 
     <div class="card">
-      <h3>Ostatnie 4 zdjęcia</h3>
-      <div class="grid" id="thumbs"></div>
+      <h3>Dzisiejsze maszyny (<span id="today"></span>)</h3>
+      <ul class="clean" id="machinesToday"></ul>
     </div>
   </div>
 
   <footer>
     <div class="row">
-      <small class="muted">© JARO</small>
+      <small class="muted">© FotSerwis</small>
       <div class="grow"></div>
-      <small class="muted">Wersja 1.0</small>
+      <small class="muted">PWA offline – cache plików.</small>
     </div>
   </footer>
 
@@ -97,7 +96,7 @@
     const installBtn = document.getElementById('installBtn');
     window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
     installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=5'); }
 
     // IndexedDB to store directory handle
     const DB_NAME = 'maszyny-store';
@@ -123,7 +122,7 @@
     let rootHandle = null;
     let rootName = '—';
     let mode = 'PRZED';
-    let lastThumbs = []; // {url, revokeAt}
+    let lastThumbs = []; // urls
 
     // Helpers
     const hasFS = !!window.showDirectoryPicker;
@@ -165,8 +164,7 @@
       lastThumbs = lastThumbs.slice(0,4);
       renderThumbs();
       setTimeout(()=>{
-        const i = lastThumbs.indexOf(url);
-        if(i===-1) URL.revokeObjectURL(url);
+        if(!lastThumbs.includes(url)) URL.revokeObjectURL(url);
       }, 60_000);
     }
     function renderThumbs(){
@@ -189,7 +187,7 @@
     async function pickRoot(){
       if(!hasFS){ alert('Twoja przeglądarka nie wspiera wyboru katalogu. Użyje pobierania plików.'); rootHandle=null; rootName='Pobrane'; updatePath(); return; }
       rootHandle = await window.showDirectoryPicker({id:'fotserwis-root'});
-      await idbSet('root', rootHandle);
+      const db=await idb(); const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(rootHandle,'root'); await new Promise(r=>{tx.oncomplete=r;});
       rootName = (rootHandle.name || 'Wybrany folder');
       await ensurePerms();
       rootLabel.textContent = rootName;
@@ -200,16 +198,22 @@
 
     (async()=>{
       todayEl.textContent = isoDate();
-      try{ const h = await idbGet('root'); if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; } }catch(e){}
+      try{ 
+        const db=await idb(); 
+        const tx=db.transaction(STORE,'readonly'); 
+        const req=tx.objectStore(STORE).get('root'); 
+        const h = await new Promise((res,rej)=>{ req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); });
+        if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; } 
+      }catch(e){}
       updatePath();
       renderMachinesToday();
+      renderThumbs();
     })();
 
     modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
     modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
 
     machineEl.addEventListener('input', ()=>{
-      // force uppercase live
       const pos = machineEl.selectionStart;
       machineEl.value = machineEl.value.toUpperCase();
       machineEl.setSelectionRange(pos, pos);
@@ -229,13 +233,12 @@
       const ts = fmt(Date.now());
       const base = `${mach}_${mode}_${ts}`;
       let idx=1, targetName=`${base}.jpg`;
-      // make unique if exists
       try{
         while(true){
           await modeHandle.getFileHandle(targetName);
           idx++; targetName = `${base}_${idx}.jpg`;
         }
-      }catch{ /* free name found */ }
+      }catch{}
       const handle = await modeHandle.getFileHandle(targetName, {create:true});
       const ws = await handle.createWritable();
       await ws.write(file);
