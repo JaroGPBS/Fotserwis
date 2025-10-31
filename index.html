@@ -131,7 +131,7 @@
     function isoDate(){ return new Date().toISOString().slice(0,10); }
     function sanitize(s){ return (s||'').toUpperCase().replace(/[^0-9A-Z._-]+/g,'-').slice(0,64); }
     function fmt(ts){ const d=new Date(ts); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
-    function modeFolder(){ return mode === 'PRZED' ? 'przed' : 'po'; }
+    function modeFolder(){ return mode === 'PRZED' ? 'PRZED' : 'PO'; }
 
     function updatePath(){
       const mach = sanitize(machineEl.value || '');
