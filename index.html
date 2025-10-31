@@ -216,19 +216,24 @@
 machineEl.addEventListener('input', ()=>{
   let val = machineEl.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
 
-  // jeśli ma 2 znaki i nie ma jeszcze "/", to dodaj "/"
+  // automatycznie wstaw "/" po drugim znaku, ale tylko jeśli nie ma żadnego
   if (val.length === 2 && !val.includes('/')) {
     val = val + '/';
   }
 
-  // jeśli ktoś usunie "/", nie dodawaj ponownie poza drugą pozycją
-  if (val.length > 3 && val[2] !== '/') {
+  // jeśli "/" istnieje, ale użytkownik go usunął, nie dodawaj ponownie
+  // dopiero gdy wpisuje od nowa bez "/"
+  if (val.length > 2 && !val.includes('/')) {
     val = val.slice(0,2) + '/' + val.slice(2);
   }
+
+  // ogranicz do 10 znaków (np. 12/34AB56)
+  if (val.length > 10) val = val.slice(0,10);
 
   machineEl.value = val;
   updatePath();
 });
+
 
 
     document.getElementById('shoot').addEventListener('click', ()=> fileInput.click());
