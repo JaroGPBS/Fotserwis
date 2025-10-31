@@ -213,12 +213,23 @@
     modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
     modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
 
-    machineEl.addEventListener('input', ()=>{
-      const pos = machineEl.selectionStart;
-      machineEl.value = machineEl.value.toUpperCase();
-      machineEl.setSelectionRange(pos, pos);
-      updatePath();
-    });
+machineEl.addEventListener('input', ()=>{
+  let val = machineEl.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+
+  // jeśli ma 2 znaki i nie ma jeszcze "/", to dodaj "/"
+  if (val.length === 2 && !val.includes('/')) {
+    val = val + '/';
+  }
+
+  // jeśli ktoś usunie "/", nie dodawaj ponownie poza drugą pozycją
+  if (val.length > 3 && val[2] !== '/') {
+    val = val.slice(0,2) + '/' + val.slice(2);
+  }
+
+  machineEl.value = val;
+  updatePath();
+});
+
 
     document.getElementById('shoot').addEventListener('click', ()=> fileInput.click());
 
