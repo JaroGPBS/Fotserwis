@@ -96,7 +96,7 @@
     const installBtn = document.getElementById('installBtn');
     window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
     installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=5'); }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=6'); }
 
     // IndexedDB to store directory handle
     const DB_NAME = 'maszyny-store';
@@ -213,26 +213,43 @@
     modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
     modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
 
-machineEl.addEventListener('input', ()=>{
-  let val = machineEl.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+machineEl.addEventListener('input', (e)=>{
+  const el = machineEl;
 
-  // automatycznie wstaw "/" po drugim znaku, ale tylko jeśli nie ma żadnego
-  if (val.length === 2 && !val.includes('/')) {
+  // zapamiętaj pozycję kursora
+  let caret = el.selectionStart;
+  const prev = el.dataset.prev || '';
+  const isInsert = (e.inputType || '').startsWith('insert');
+
+  // DUŻE litery + tylko A-Z, 0-9 i ewentualnie jeden "/"
+  let val = el.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+
+  // zredukuj do max jednego "/" (pierwszy zostaje, reszta znika)
+  const firstSlash = val.indexOf('/');
+  if (firstSlash !== -1) {
+    val = val.slice(0, firstSlash + 1) + val.slice(firstSlash + 1).replace(/\//g, '');
+  }
+
+  // AUTO: jeśli użytkownik WŁAŚNIE wpisał drugi znak (zapis typu "insert"),
+  // i nie ma jeszcze "/", to dodaj "/" na koniec
+  if (isInsert && !prev.includes('/') && val.length === 2) {
     val = val + '/';
+    // przesuń kursor za wstawiony "/"
+    if (caret === 2) caret = 3;
   }
 
-  // jeśli "/" istnieje, ale użytkownik go usunął, nie dodawaj ponownie
-  // dopiero gdy wpisuje od nowa bez "/"
-  if (val.length > 2 && !val.includes('/')) {
-    val = val.slice(0,2) + '/' + val.slice(2);
-  }
+  // NIE WYMUSZAJ ponownie "/" jeśli użytkownik go skasował ręcznie.
+  // (Dlatego nie ma tu logiki "jeśli brak '/', a length>2 to wstaw".)
 
-  // ogranicz do 10 znaków (np. 12/34AB56)
-  if (val.length > 10) val = val.slice(0,10);
+  el.value = val;
+  el.dataset.prev = val;
 
-  machineEl.value = val;
+  // przywróć kursor
+  try { el.setSelectionRange(caret, caret); } catch {}
+
   updatePath();
 });
+
 
 
 
