@@ -1,5 +1,5 @@
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('fotserwis-local-v5').then((c)=>c.addAll([
+  e.waitUntil(caches.open('fotserwis-local-v23').then((c)=>c.addAll([
     './',
     './index.html?v=23',
     './manifest.webmanifest?v=23'
