@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FotSerwis</title>
+  <title>FotSerwis – PRZED/PO (Lokalnie)</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#3c4048" />
+  <meta name="theme-color" content="#111827" />
   <style>
-    :root{--bg:#2f343f;--card:#1c2626;--muted:#9ca3af;--text:#e5e7eb;--accent:#22c55e;--orange:#f59e0b}
+    :root{--bg:#0f172a;--card:#111827;--muted:#9ca3af;--text:#e5e7eb;--accent:#22c55e;--orange:#f59e0b}
     html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
     .wrap{max-width:980px;margin:0 auto;padding:16px 16px 120px}
     header{position:sticky;top:0;background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(15,23,42,.9));backdrop-filter:saturate(180%) blur(8px);z-index:10;border-bottom:1px solid #1f2937}
@@ -44,10 +44,10 @@
 <body>
   <header>
     <div class="bar">
-      <div class="title">FotSerwis</div>
+      <div class="title">FotSerwis – PRZED/PO</div>
       <div class="subbar">
-        <span class="muted">Folder:</span>
-        <button class="btn secondary" id="pickRoot">📁 Wybierz:</button>
+        <span class="muted">Folder główny:</span>
+        <button class="btn secondary" id="pickRoot">📁 Wybierz katalog</button>
         <span class="muted" id="rootLabel">brak</span>
         <div class="grow"></div>
         <button class="btn secondary" id="installBtn" hidden>⬇️ Zainstaluj</button>
@@ -84,9 +84,9 @@
 
   <footer>
     <div class="row">
-      <small class="muted">© Jaro</small>
+      <small class="muted">© FotSerwis</small>
       <div class="grow"></div>
-      <small class="muted">FotSerwis ver. 1.0.</small>
+      <small class="muted">PWA offline – cache plików.</small>
     </div>
   </footer>
 
@@ -96,7 +96,7 @@
     const installBtn = document.getElementById('installBtn');
     window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
     installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=7'); }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=5'); }
 
     // IndexedDB to store directory handle
     const DB_NAME = 'maszyny-store';
@@ -130,8 +130,8 @@
     function ddmm(){ const d=new Date(); return `${p(d.getDate())}-${p(d.getMonth()+1)}`; }
     function isoDate(){ return new Date().toISOString().slice(0,10); }
     function sanitize(s){ return (s||'').toUpperCase().replace(/[^0-9A-Z._-]+/g,'-').slice(0,64); }
-    function modeFolder(){ return mode === 'PRZED' ? 'PRZED' : 'PO'; }  // foldery DUŻE
-    function modeTitle(){ return mode === 'PRZED' ? 'Przed' : 'Po'; }   // do nazwy pliku (ładniej)
+    function fmt(ts){ const d=new Date(ts); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+    function modeFolder(){ return mode === 'PRZED' ? 'przed' : 'po'; }
 
     function updatePath(){
       const mach = sanitize(machineEl.value || '');
@@ -198,12 +198,12 @@
 
     (async()=>{
       todayEl.textContent = isoDate();
-      try{
-        const db=await idb();
-        const tx=db.transaction(STORE,'readonly');
-        const req=tx.objectStore(STORE).get('root');
+      try{ 
+        const db=await idb(); 
+        const tx=db.transaction(STORE,'readonly'); 
+        const req=tx.objectStore(STORE).get('root'); 
         const h = await new Promise((res,rej)=>{ req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); });
-        if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; }
+        if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; } 
       }catch(e){}
       updatePath();
       renderMachinesToday();
@@ -213,58 +213,43 @@
     modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
     modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
 
-    // UPPERCASE input, bez automatycznego "/"
     machineEl.addEventListener('input', ()=>{
-      let val = machineEl.value.toUpperCase().replace(/[^A-Z0-9._-]/g, '');
-      machineEl.value = val;
+      const pos = machineEl.selectionStart;
+      machineEl.value = machineEl.value.toUpperCase();
+      machineEl.setSelectionRange(pos, pos);
       updatePath();
     });
 
     document.getElementById('shoot').addEventListener('click', ()=> fileInput.click());
 
-    // Zwraca kolejny numer dla plików "N-Przed-NUMER.jpg" / "N-Po-NUMER.jpg"
-    async function nextIndex(modeHandle, machine){
-      let maxN = 0;
-      const modeWord = modeTitle(); // "Przed" / "Po"
-      const re = new RegExp(`^(\\d+)-${modeWord}-${machine}\\.jpg$`, 'i');
-      for await (const [name] of modeHandle.entries()) {
-        const m = name.match(re);
-        if (m) {
-          const n = parseInt(m[1], 10);
-          if (!Number.isNaN(n) && n > maxN) maxN = n;
-        }
-      }
-      return maxN + 1;
-    }
-
     async function saveToFS(file){
       if(!rootHandle) throw new Error('Brak katalogu głównego');
       if(!(await ensurePerms())) throw new Error('Brak uprawnień do zapisu');
-
       const mach = sanitize(machineEl.value||'');
       const dateDir = ddmm();
       const dateHandle = await rootHandle.getDirectoryHandle(dateDir, {create:true});
       const machineHandle = await dateHandle.getDirectoryHandle(mach, {create:true});
       const modeHandle = await machineHandle.getDirectoryHandle(modeFolder(), {create:true});
-
-      const idx = await nextIndex(modeHandle, mach);
-      const fileName = `${idx}-${modeTitle()}-${mach}.jpg`;
-
-      const handle = await modeHandle.getFileHandle(fileName, {create:true});
+      const ts = fmt(Date.now());
+      const base = `${mach}_${mode}_${ts}`;
+      let idx=1, targetName=`${base}.jpg`;
+      try{
+        while(true){
+          await modeHandle.getFileHandle(targetName);
+          idx++; targetName = `${base}_${idx}.jpg`;
+        }
+      }catch{}
+      const handle = await modeHandle.getFileHandle(targetName, {create:true});
       const ws = await handle.createWritable();
       await ws.write(file);
       await ws.close();
-      return fileName;
+      return targetName;
     }
 
     async function saveFallback(file){
       const mach = sanitize(machineEl.value||'');
-      // Fallback nie ma dostępu do katalogu – licznik w pamięci per tryb
-      const idx = (window.__lastIdx ||= {Przed:0, Po:0});
-      const key = modeTitle();
-      idx[key] = (idx[key] || 0) + 1;
-      const name = `${idx[key]}-${key}-${mach}.jpg`;
-
+      const ts = fmt(Date.now());
+      const name = `${mach}_${mode}_${ts}.jpg`;
       const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(file); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60_000);
       return name;
     }
