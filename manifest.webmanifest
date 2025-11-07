@@ -1,10 +1,10 @@
 {
-  "name": "FotSerwis – Lokalny zapis",
+  "name": "FotSerwis",
   "short_name": "FotSerwis",
-  "start_url": ".",
+  "start_url": "./?v=8",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#111827",
+  "background_color": "#2f343f",
+  "theme_color": "#3c4048",
   "icons": [
     {
       "src": "icon-192.png",
