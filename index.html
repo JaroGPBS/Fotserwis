@@ -96,7 +96,7 @@
     const installBtn = document.getElementById('installBtn');
     window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.hidden = false; });
     installBtn?.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; installBtn.hidden = true; deferredPrompt = null; });
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=6'); }
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js?v=7'); }
 
     // IndexedDB to store directory handle
     const DB_NAME = 'maszyny-store';
@@ -130,8 +130,8 @@
     function ddmm(){ const d=new Date(); return `${p(d.getDate())}-${p(d.getMonth()+1)}`; }
     function isoDate(){ return new Date().toISOString().slice(0,10); }
     function sanitize(s){ return (s||'').toUpperCase().replace(/[^0-9A-Z._-]+/g,'-').slice(0,64); }
-    function fmt(ts){ const d=new Date(ts); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
-    function modeFolder(){ return mode === 'PRZED' ? 'PRZED' : 'PO'; }
+    function modeFolder(){ return mode === 'PRZED' ? 'PRZED' : 'PO'; }  // foldery DUŻE
+    function modeTitle(){ return mode === 'PRZED' ? 'Przed' : 'Po'; }   // do nazwy pliku (ładniej)
 
     function updatePath(){
       const mach = sanitize(machineEl.value || '');
@@ -198,12 +198,12 @@
 
     (async()=>{
       todayEl.textContent = isoDate();
-      try{ 
-        const db=await idb(); 
-        const tx=db.transaction(STORE,'readonly'); 
-        const req=tx.objectStore(STORE).get('root'); 
+      try{
+        const db=await idb();
+        const tx=db.transaction(STORE,'readonly');
+        const req=tx.objectStore(STORE).get('root');
         const h = await new Promise((res,rej)=>{ req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); });
-        if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; } 
+        if(h){ rootHandle=h; rootName=h.name || 'Wybrany folder'; await ensurePerms(); rootLabel.textContent = rootName; }
       }catch(e){}
       updatePath();
       renderMachinesToday();
@@ -213,76 +213,58 @@
     modeBefore.addEventListener('click',()=>{ mode='PRZED'; modeBefore.classList.add('active'); modeAfter.classList.remove('active'); updatePath(); });
     modeAfter.addEventListener('click',()=>{ mode='PO'; modeAfter.classList.add('active'); modeBefore.classList.remove('active'); updatePath(); });
 
-machineEl.addEventListener('input', (e)=>{
-  const el = machineEl;
-
-  // zapamiętaj pozycję kursora
-  let caret = el.selectionStart;
-  const prev = el.dataset.prev || '';
-  const isInsert = (e.inputType || '').startsWith('insert');
-
-  // DUŻE litery + tylko A-Z, 0-9 i ewentualnie jeden "/"
-  let val = el.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
-
-  // zredukuj do max jednego "/" (pierwszy zostaje, reszta znika)
-  const firstSlash = val.indexOf('/');
-  if (firstSlash !== -1) {
-    val = val.slice(0, firstSlash + 1) + val.slice(firstSlash + 1).replace(/\//g, '');
-  }
-
-  // AUTO: jeśli użytkownik WŁAŚNIE wpisał drugi znak (zapis typu "insert"),
-  // i nie ma jeszcze "/", to dodaj "/" na koniec
-  if (isInsert && !prev.includes('/') && val.length === 2) {
-    val = val + '/';
-    // przesuń kursor za wstawiony "/"
-    if (caret === 2) caret = 3;
-  }
-
-  // NIE WYMUSZAJ ponownie "/" jeśli użytkownik go skasował ręcznie.
-  // (Dlatego nie ma tu logiki "jeśli brak '/', a length>2 to wstaw".)
-
-  el.value = val;
-  el.dataset.prev = val;
-
-  // przywróć kursor
-  try { el.setSelectionRange(caret, caret); } catch {}
-
-  updatePath();
-});
-
-
-
+    // UPPERCASE input, bez automatycznego "/"
+    machineEl.addEventListener('input', ()=>{
+      let val = machineEl.value.toUpperCase().replace(/[^A-Z0-9._-]/g, '');
+      machineEl.value = val;
+      updatePath();
+    });
 
     document.getElementById('shoot').addEventListener('click', ()=> fileInput.click());
+
+    // Zwraca kolejny numer dla plików "N-Przed-NUMER.jpg" / "N-Po-NUMER.jpg"
+    async function nextIndex(modeHandle, machine){
+      let maxN = 0;
+      const modeWord = modeTitle(); // "Przed" / "Po"
+      const re = new RegExp(`^(\\d+)-${modeWord}-${machine}\\.jpg$`, 'i');
+      for await (const [name] of modeHandle.entries()) {
+        const m = name.match(re);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (!Number.isNaN(n) && n > maxN) maxN = n;
+        }
+      }
+      return maxN + 1;
+    }
 
     async function saveToFS(file){
       if(!rootHandle) throw new Error('Brak katalogu głównego');
       if(!(await ensurePerms())) throw new Error('Brak uprawnień do zapisu');
+
       const mach = sanitize(machineEl.value||'');
       const dateDir = ddmm();
       const dateHandle = await rootHandle.getDirectoryHandle(dateDir, {create:true});
       const machineHandle = await dateHandle.getDirectoryHandle(mach, {create:true});
       const modeHandle = await machineHandle.getDirectoryHandle(modeFolder(), {create:true});
-      const ts = fmt(Date.now());
-      const base = `${mach}_${mode}_${ts}`;
-      let idx=1, targetName=`${base}.jpg`;
-      try{
-        while(true){
-          await modeHandle.getFileHandle(targetName);
-          idx++; targetName = `${base}_${idx}.jpg`;
-        }
-      }catch{}
-      const handle = await modeHandle.getFileHandle(targetName, {create:true});
+
+      const idx = await nextIndex(modeHandle, mach);
+      const fileName = `${idx}-${modeTitle()}-${mach}.jpg`;
+
+      const handle = await modeHandle.getFileHandle(fileName, {create:true});
       const ws = await handle.createWritable();
       await ws.write(file);
       await ws.close();
-      return targetName;
+      return fileName;
     }
 
     async function saveFallback(file){
       const mach = sanitize(machineEl.value||'');
-      const ts = fmt(Date.now());
-      const name = `${mach}_${mode}_${ts}.jpg`;
+      // Fallback nie ma dostępu do katalogu – licznik w pamięci per tryb
+      const idx = (window.__lastIdx ||= {Przed:0, Po:0});
+      const key = modeTitle();
+      idx[key] = (idx[key] || 0) + 1;
+      const name = `${idx[key]}-${key}-${mach}.jpg`;
+
       const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(file); document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60_000);
       return name;
     }
